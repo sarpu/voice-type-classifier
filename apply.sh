@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-start=`date +%s`
+start=$(date +%s)
 
 THISDIR="$( cd "$( dirname "$0" )" && pwd )"
 
@@ -49,7 +49,7 @@ for i in {2..3}; do
     fi
 done
 
-TARGET_PATH=$(echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")")
+TARGET_PATH="$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
 if [[ "${TARGET_PATH}" == *.wav ]]; then
     # We want to apply the model on a single wav
     EXT=""
@@ -58,56 +58,57 @@ else
     EXT="/*.wav"
 fi
 
-if [[ "$(ls -A ${TARGET_PATH}$EXT)" ]]; then
+if [[ "$(ls -A "${TARGET_PATH}""$EXT")" ]]; then
 
-    bn=$(basename ${TARGET_PATH})
+    bn="$(basename "${TARGET_PATH}")"
 
     if [[ "${TARGET_PATH}" == *.wav ]]; then
-        bn=${bn/.wav/}
-        DB_PATH="$(dirname ${TARGET_PATH})/{uri}.wav"
+        bn="${bn/.wav/}"
+        DB_PATH="$(dirname "${TARGET_PATH}")"'/*.wav'
     else
-        DB_PATH="${TARGET_PATH}/{uri}.wav"
+        DB_PATH="${TARGET_PATH}"'/*.wav'
     fi;
 
 
     echo "Creating config for pyannote."
     # Create pyannote_tmp_config containing all the necessary files
-    rm -rf $THISDIR/pyannote_tmp_config/$bn
-    mkdir -p $THISDIR/pyannote_tmp_config/$bn
+    rm -rf "$THISDIR"/pyannote_tmp_config/"$bn"
+    mkdir -p "$THISDIR"/pyannote_tmp_config/"$bn"
+    echo "$THISDIR"/pyannote_tmp_config/"$bn"/database.yml
 
     # Create database.yml
     echo "Databases:
-    ${bn}_protocol: ${DB_PATH}
+    "${bn}"_protocol: "${DB_PATH}"
 
 Protocols:
-  ${bn}_protocol:
+  "${bn}"_protocol:
     SpeakerDiarization:
       All:
         test:
-          annotated: $THISDIR/pyannote_tmp_config/$bn/$bn.uem" > $THISDIR/pyannote_tmp_config/$bn/database.yml
+          annotated: "$THISDIR"/pyannote_tmp_config/"$bn"/"$bn".uem" > "$THISDIR"/pyannote_tmp_config/"$bn"/database.yml
 
     # Create .uem file
-    for audio in $(ls -A ${TARGET_PATH}$EXT); do
-        duration=$(soxi -D $audio)
-        echo "$(basename ${audio/.wav/}) 1 0.0 $duration"
-    done > $THISDIR/pyannote_tmp_config/$bn/$bn.uem
+    for audio in "${TARGET_PATH}"$EXT; do
+        duration=$(soxi -D "$audio")
+        echo "$(basename "${audio/.wav/}") 1 0.0 $duration"
+    done > "$THISDIR"/pyannote_tmp_config/"$bn"/"$bn".uem
 
     echo "Done creating config for pyannote."
 
-    export PYANNOTE_DATABASE_CONFIG=$THISDIR/pyannote_tmp_config/$bn/database.yml
+    export PYANNOTE_DATABASE_CONFIG="$THISDIR"/pyannote_tmp_config/"$bn"/database.yml
 
-    OUTPUT=output_voice_type_classifier/$bn/
-    mkdir -p output_voice_type_classifier/$bn/
+    OUTPUT=output_voice_type_classifier/"$bn"/
+    mkdir -p output_voice_type_classifier/"$bn"/
 
     # Commenting these 2 lines as grep can't be problematic on MAC distrib.
     #BEST_EPOCH=$(cat model/train/X.SpeakerDiarization.BBT2_LeaveOneDomainOut_paido.train/validate_average_detection_fscore/X.SpeakerDiarization.BBT2_LeaveOneDomainOut_paido.development/params.yml | grep -oP "(?<=epoch: )\d+")
     #BEST_EPOCH=$(printf %04d $BEST_EPOCH)
     BEST_EPOCH=0100
 
-    VAL_DIR=$THISDIR/model/train/X.SpeakerDiarization.BBT2_LeaveOneDomainOut_paido.train/validate_average_detection_fscore/X.SpeakerDiarization.BBT2_LeaveOneDomainOut_paido.development
+    VAL_DIR="$THISDIR"/model/train/X.SpeakerDiarization.BBT2_LeaveOneDomainOut_paido.train/validate_average_detection_fscore/X.SpeakerDiarization.BBT2_LeaveOneDomainOut_paido.development
 
     # Check current class is in classes (provided by the user or by default the KCHI CHI MAL FEM SPEECH)
-    pyannote-audio mlt apply --$DEVICE --batch=$BATCH --subset=test --parallel=8 $VAL_DIR ${bn}_protocol.SpeakerDiarization.All
+    pyannote-audio mlt apply --$DEVICE --batch=$BATCH --subset=test --parallel=8 "$VAL_DIR" "${bn}"_protocol.SpeakerDiarization.All
 
     if [ $? -ne 0 ]; then
         echo "Something went wrong when applying the model"
@@ -117,23 +118,23 @@ Protocols:
 
     classes=(KCHI CHI MAL FEM SPEECH)
     for class in ${classes[*]}; do
-        mv ${VAL_DIR}/apply/${BEST_EPOCH}/${bn}_protocol.SpeakerDiarization.All.test.$class.rttm $OUTPUT/$class.rttm
+        mv "${VAL_DIR}"/apply/"${BEST_EPOCH}"/"${bn}"_protocol.SpeakerDiarization.All.test."$class".rttm "$OUTPUT"/"$class".rttm
     done
 
     # Clean up
-    rm -rf ${VAL_DIR}/apply/apply/${BEST_EPOCH}/$bn
-    rm -f $OUTPUT/all.rttm
-    cat $OUTPUT/*.rttm > $OUTPUT/all.rttm
+    rm -rf "${VAL_DIR}"/apply/apply/"${BEST_EPOCH}"/"$bn"
+    rm -f "$OUTPUT"/all.rttm
+    cat "$OUTPUT"/*.rttm > "$OUTPUT"/all.rttm
 
     # Super powerful sorting bash command :D !
     # Sort alphabetically to the second column, and numerically to the fourth one.
-    sort -b -k2,2 -k4,4n $OUTPUT/all.rttm > $OUTPUT/all.tmp.rttm
-    rm $OUTPUT/all.rttm
-    mv $OUTPUT/all.tmp.rttm $OUTPUT/all.rttm
+    sort -b -k2,2 -k4,4n "$OUTPUT"/all.rttm > "$OUTPUT"/all.tmp.rttm
+    rm "$OUTPUT"/all.rttm
+    mv "$OUTPUT"/all.tmp.rttm "$OUTPUT"/all.rttm
 else
     echo "The folder you provided doesn't contain any wav files."
 fi;
 
-end=`date +%s`
+end=$(date +%s)
 runtime=$((end-start))
 echo "Took $runtime sec on $bn."
