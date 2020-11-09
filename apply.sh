@@ -58,15 +58,15 @@ else
     EXT="/*.wav"
 fi
 
-if [[ "$(ls -A "${TARGET_PATH}""$EXT")" ]]; then
+if [[ "$(ls -A "${TARGET_PATH}"$EXT)" ]]; then
 
     bn="$(basename "${TARGET_PATH}")"
 
     if [[ "${TARGET_PATH}" == *.wav ]]; then
-        bn=${bn/.wav/}
-        DB_PATH="$(dirname ${TARGET_PATH})/{uri}.wav"
+        bn="${bn/.wav/}"
+        DB_PATH="$(dirname "${TARGET_PATH}")"'/{uri}.wav'
     else
-        DB_PATH="${TARGET_PATH}/{uri}.wav"
+        DB_PATH="${TARGET_PATH}"'/{uri}.wav'
     fi;
 
 
